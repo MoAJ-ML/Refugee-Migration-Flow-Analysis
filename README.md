@@ -260,9 +260,3 @@ For questions about this analysis or to request modifications:
 This project uses UNHCR data which is subject to their copyright terms. Please refer to `download/UNHCR_RefugeeDataFinder_Copyright.pdf` for usage guidelines.
 
 ---
-
-**Analysis completed**: September 2024  
-**Data period**: 2000-2024  
-**Forecast period**: 2025-2034  
-**Models used**: ARIMA, Prophet  
-**Status**: ✅ Complete with enhanced visualizations and policy insights
