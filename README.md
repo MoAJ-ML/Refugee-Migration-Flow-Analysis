@@ -33,13 +33,9 @@ Refugee Migration Flow Analysis/
 │   ├── footnotes.csv                           # Data footnotes and explanations
 │   └── UNHCR_RefugeeDataFinder_Copyright.pdf  # Copyright information
 ├── visualizations/                             # Generated visualizations
-│   ├── global_refugee_trends.png              # Main trends analysis
-│   ├── model_performance_comparison.png       # Model performance comparison
-│   ├── future_forecasts.png                   # Future projections
-│   ├── enhanced_trends_analysis.png           # Enhanced trends with annotations
-│   ├── enhanced_model_analysis.png            # Enhanced model analysis
 │   ├── enhanced_forecasts.png                 # Enhanced forecasts with confidence intervals
-│   └── interactive_dashboard.html             # Interactive Plotly dashboard
+│   ├── enhanced_model_analysis.png            # Enhanced model analysis
+│   └── enhanced_trends_analysis.png           # Enhanced trends with annotations
 ├── refugee_migration_analysis.py              # Main analysis script
 ├── create_visualizations.py                   # Visualization creation script
 ├── requirements.txt                           # Python dependencies
@@ -79,9 +75,8 @@ Refugee Migration Flow Analysis/
 ### Expected Output
 The scripts will generate:
 - Comprehensive analysis in the terminal
-- 6 visualization files in the `visualizations/` folder
+- 3 visualization files in the `visualizations/` folder
 - 2 CSV files with forecasts and model metrics
-- Interactive HTML dashboard
 
 ## 📈 Analysis Components
 
@@ -127,13 +122,7 @@ The scripts will generate:
 - Growth rate analysis
 - **Fixed**: All x-axis labels properly formatted, no cutoff issues
 
-### 2. Interactive Dashboard (`interactive_dashboard.html`)
-- Interactive Plotly visualizations
-- Zoomable and filterable charts
-- Hover data for detailed exploration
-- Professional presentation format
-
-### 3. Model Performance Comparison (`model_performance_comparison.png`)
+### 2. Model Performance Comparison (`model_performance_comparison.png`)
 - ARIMA vs Prophet performance comparison
 - Actual vs predicted values for test period
 - RMSE and MAPE comparison charts
@@ -207,7 +196,6 @@ The scripts will generate:
 - **`enhanced_trends_analysis.png`**: Enhanced trends with annotations
 - **`enhanced_model_analysis.png`**: Enhanced model analysis
 - **`enhanced_forecasts.png`**: Enhanced forecasts with confidence intervals
-- **`interactive_dashboard.html`**: Interactive dashboard
 
 ## 🛠️ Dependencies
 
