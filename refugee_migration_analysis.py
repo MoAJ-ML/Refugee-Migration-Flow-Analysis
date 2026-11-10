@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Refugee Migration Flow Analysis
-===============================
+Refugee and Displacement Stock Analysis
+=======================================
 
-A comprehensive data science project analyzing UNHCR refugee data to forecast
-migration flows and generate policy-relevant insights.
+An educational analysis of UNHCR population stocks and uncertain statistical
+scenarios. Annual stock changes are not observed migration flows.
 
 Author: Data Science Assistant
 Date: 2024
@@ -26,7 +26,7 @@ plt.style.use('seaborn-v0_8')
 sns.set_palette("husl")
 
 print("=" * 60)
-print("REFUGEE MIGRATION FLOW ANALYSIS")
+print("REFUGEE AND DISPLACEMENT STOCK ANALYSIS")
 print("=" * 60)
 
 # Step 1: Data Loading and Initial Exploration
@@ -70,7 +70,7 @@ df['Date'] = pd.to_datetime(df['Year'], format='%Y')
 df = df.sort_values('Date').reset_index(drop=True)
 
 # Create a comprehensive dataset with all population types
-print("Creating comprehensive migration flow dataset...")
+print("Creating displacement stock dataset...")
 
 # Calculate total persons of concern (POC)
 df['Total_POC'] = (df['Refugees'] + df['Asylum Seekers'] + df['IDPs'] + 
@@ -475,8 +475,8 @@ if prophet_available:
     print(f"{'Prophet (Refugees)':<20} {prophet_metrics_refugees['RMSE']:<15,.0f} {prophet_metrics_refugees['MAE']:<15,.0f} {prophet_metrics_refugees['MAPE']:<10.2f}%")
     print(f"{'Prophet (POC)':<20} {prophet_metrics_poc['RMSE']:<15,.0f} {prophet_metrics_poc['MAE']:<15,.0f} {prophet_metrics_poc['MAPE']:<10.2f}%")
 
-# Step 9: Future Forecasting and Policy Insights
-print("\n\n9. FUTURE FORECASTING AND POLICY INSIGHTS")
+# Step 9: Statistical scenarios and interpretation limits
+print("\n\n9. STATISTICAL SCENARIOS AND INTERPRETATION LIMITS")
 print("-" * 40)
 
 # Generate forecasts for next 10 years
@@ -484,10 +484,10 @@ forecast_years = 10
 future_dates = pd.date_range(start=ts_data.index.max() + pd.DateOffset(years=1), 
                             periods=forecast_years, freq='YS')
 
-print(f"Generating forecasts for {forecast_years} years ahead ({future_dates[0].year}-{future_dates[-1].year})...")
+print(f"Generating illustrative ARIMA scenarios for {forecast_years} years ({future_dates[0].year}-{future_dates[-1].year})...")
 
-# Use the best performing model for future forecasts
-# For simplicity, we'll use ARIMA for both variables
+# Use ARIMA as an illustrative extrapolation. It did not outperform the naive
+# baseline for refugee stock on the five rolling-origin validation years.
 final_refugee_model = ARIMA(ts_data['Refugees'], order=best_params_refugees).fit()
 final_poc_model = ARIMA(ts_data['Total_POC'], order=best_params_poc).fit()
 future_arima_refugees = np.asarray(final_refugee_model.forecast(steps=forecast_years))
@@ -507,7 +507,7 @@ current_poc = ts_data['Total_POC'].iloc[-1]
 future_forecasts['Refugee_Growth'] = ((future_forecasts['Refugees_Forecast'] / current_refugees) - 1) * 100
 future_forecasts['POC_Growth'] = ((future_forecasts['Total_POC_Forecast'] / current_poc) - 1) * 100
 
-print(f"\nFuture Forecasts Summary:")
+print(f"\nIllustrative ARIMA Scenario Summary:")
 print(f"{'Year':<6} {'Refugees':<15} {'Growth%':<10} {'Total POC':<15} {'Growth%':<10}")
 print("-" * 60)
 for _, row in future_forecasts.iterrows():
@@ -593,7 +593,7 @@ performance_metrics.to_csv('model_performance_metrics.csv', index=False)
 print("Model performance metrics saved to 'model_performance_metrics.csv'")
 
 print(f"\n" + "=" * 60)
-print("REFUGEE MIGRATION FLOW ANALYSIS COMPLETED")
+print("REFUGEE AND DISPLACEMENT STOCK ANALYSIS COMPLETED")
 print("=" * 60)
 print(f"All visualizations saved in 'visualizations/' folder")
 print(f"Forecast data exported to CSV files")
