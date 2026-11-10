@@ -18,6 +18,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import warnings
+from validation import rolling_origin_forecasts, mean_absolute_errors
 warnings.filterwarnings('ignore')
 
 # Set style for better visualizations
@@ -76,9 +77,10 @@ df['Total_POC'] = (df['Refugees'] + df['Asylum Seekers'] + df['IDPs'] +
                    df['Returned Refugees'] + df['Returned IDPs'] + 
                    df['Stateless'] + df['HST'] + df['OOC'])
 
-# Calculate net migration flows (new arrivals minus returns)
-df['Net_Refugee_Flow'] = df['Refugees'] - df['Returned Refugees']
-df['Net_IDP_Flow'] = df['IDPs'] - df['Returned IDPs']
+# These are population stocks, not annual arrivals. Subtracting a returned
+# population from a refugee/IDP stock is not a migration-flow measure.
+df['Refugee_Stock_Change'] = df['Refugees'].diff()
+df['IDP_Stock_Change'] = df['IDPs'].diff()
 
 # Calculate growth rates
 df['Refugee_Growth_Rate'] = df['Refugees'].pct_change() * 100
@@ -87,8 +89,8 @@ df['Total_POC_Growth_Rate'] = df['Total_POC'].pct_change() * 100
 print(f"Data cleaning completed. New columns added:")
 print(f"- Date: {df['Date'].dtype}")
 print(f"- Total_POC: Total persons of concern")
-print(f"- Net_Refugee_Flow: Net refugee movements")
-print(f"- Net_IDP_Flow: Net IDP movements")
+print(f"- Refugee_Stock_Change: Change in refugee stock")
+print(f"- IDP_Stock_Change: Change in IDP stock")
 print(f"- Growth rates calculated")
 
 # Check for any remaining missing values
@@ -122,10 +124,10 @@ axes[0, 1].set_ylabel('Total POC')
 axes[0, 1].grid(True, alpha=0.3)
 axes[0, 1].tick_params(axis='x', rotation=45)
 
-# 3. Net Migration Flows
-axes[1, 0].plot(df['Date'], df['Net_Refugee_Flow'], linewidth=2, color='#F18F01', label='Net Refugee Flow', marker='^')
-axes[1, 0].plot(df['Date'], df['Net_IDP_Flow'], linewidth=2, color='#C73E1D', label='Net IDP Flow', marker='v')
-axes[1, 0].set_title('Net Migration Flows', fontweight='bold')
+# 3. Annual Change in Recorded Population
+axes[1, 0].plot(df['Date'], df['Refugee_Stock_Change'], linewidth=2, color='#F18F01', label='Refugee Stock Change', marker='^')
+axes[1, 0].plot(df['Date'], df['IDP_Stock_Change'], linewidth=2, color='#C73E1D', label='IDP Stock Change', marker='v')
+axes[1, 0].set_title('Annual Change in Recorded Population', fontweight='bold')
 axes[1, 0].set_ylabel('Net Flow')
 axes[1, 0].legend()
 axes[1, 0].grid(True, alpha=0.3)
@@ -150,7 +152,7 @@ print("\nCreating interactive visualizations...")
 fig_interactive = make_subplots(
     rows=2, cols=2,
     subplot_titles=('Global Refugee Population', 'Total Persons of Concern', 
-                   'Net Migration Flows', 'Growth Rates'),
+                   'Annual Change in Recorded Population', 'Growth Rates'),
     specs=[[{"secondary_y": False}, {"secondary_y": False}],
            [{"secondary_y": False}, {"secondary_y": False}]]
 )
@@ -169,14 +171,14 @@ fig_interactive.add_trace(
 )
 
 fig_interactive.add_trace(
-    go.Scatter(x=df['Date'], y=df['Net_Refugee_Flow'], mode='lines+markers', 
-               name='Net Refugee Flow', line=dict(color='#F18F01', width=3)),
+    go.Scatter(x=df['Date'], y=df['Refugee_Stock_Change'], mode='lines+markers',
+               name='Refugee Stock Change', line=dict(color='#F18F01', width=3)),
     row=2, col=1
 )
 
 fig_interactive.add_trace(
-    go.Scatter(x=df['Date'], y=df['Net_IDP_Flow'], mode='lines+markers', 
-               name='Net IDP Flow', line=dict(color='#C73E1D', width=3)),
+    go.Scatter(x=df['Date'], y=df['IDP_Stock_Change'], mode='lines+markers',
+               name='IDP Stock Change', line=dict(color='#C73E1D', width=3)),
     row=2, col=1
 )
 
@@ -236,7 +238,7 @@ from statsmodels.tsa.stattools import adfuller
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 
 # Create time series for main variables
-ts_data = df[['Date', 'Refugees', 'Total_POC', 'Net_Refugee_Flow']].copy()
+ts_data = df[['Date', 'Refugees', 'Total_POC', 'Refugee_Stock_Change']].copy()
 ts_data = ts_data.set_index('Date')
 
 print("Time series data prepared:")
@@ -254,7 +256,7 @@ print(f"Testing period: {test_data.index.min().year} - {test_data.index.max().ye
 
 # Stationarity tests
 print(f"\nStationarity Tests (Augmented Dickey-Fuller):")
-for col in ['Refugees', 'Total_POC', 'Net_Refugee_Flow']:
+for col in ['Refugees', 'Total_POC', 'Refugee_Stock_Change']:
     result = adfuller(train_data[col].dropna())
     print(f"{col}: ADF Statistic = {result[0]:.4f}, p-value = {result[1]:.4f}")
     if result[1] <= 0.05:
@@ -331,6 +333,14 @@ arima_forecast_poc = pd.Series(arima_forecast_poc, index=test_data.index)
 
 arima_metrics_poc = evaluate_forecast(test_data['Total_POC'], arima_forecast_poc, "ARIMA (Total POC)")
 
+# Every validation prediction below is trained only through the prior year.
+rolling_refugees = rolling_origin_forecasts(ts_data['Refugees'], best_params_refugees)
+rolling_poc = rolling_origin_forecasts(ts_data['Total_POC'], best_params_poc)
+rolling_refugees.to_csv('rolling_origin_refugees.csv', index=False)
+rolling_poc.to_csv('rolling_origin_poc.csv', index=False)
+print('Rolling-origin one-year MAE (refugees):', mean_absolute_errors(rolling_refugees))
+print('Rolling-origin one-year MAE (POC):', mean_absolute_errors(rolling_poc))
+
 # Step 7: Prophet Forecasting Model
 print("\n\n7. PROPHET FORECASTING MODEL")
 print("-" * 40)
@@ -359,7 +369,7 @@ try:
     prophet_model_refugees.fit(prophet_data_refugees)
     
     # Make future predictions
-    future_refugees = prophet_model_refugees.make_future_dataframe(periods=len(test_data), freq='Y')
+    future_refugees = prophet_model_refugees.make_future_dataframe(periods=len(test_data), freq='YS')
     prophet_forecast_refugees = prophet_model_refugees.predict(future_refugees)
     
     # Extract test period predictions
@@ -380,7 +390,7 @@ try:
     )
     prophet_model_poc.fit(prophet_data_poc)
     
-    future_poc = prophet_model_poc.make_future_dataframe(periods=len(test_data), freq='Y')
+    future_poc = prophet_model_poc.make_future_dataframe(periods=len(test_data), freq='YS')
     prophet_forecast_poc = prophet_model_poc.predict(future_poc)
     
     prophet_pred_poc = prophet_forecast_poc['yhat'].iloc[-len(test_data):]
@@ -472,14 +482,16 @@ print("-" * 40)
 # Generate forecasts for next 10 years
 forecast_years = 10
 future_dates = pd.date_range(start=ts_data.index.max() + pd.DateOffset(years=1), 
-                            periods=forecast_years, freq='Y')
+                            periods=forecast_years, freq='YS')
 
 print(f"Generating forecasts for {forecast_years} years ahead ({future_dates[0].year}-{future_dates[-1].year})...")
 
 # Use the best performing model for future forecasts
 # For simplicity, we'll use ARIMA for both variables
-future_arima_refugees = arima_fitted_refugees.forecast(steps=forecast_years)
-future_arima_poc = arima_fitted_poc.forecast(steps=forecast_years)
+final_refugee_model = ARIMA(ts_data['Refugees'], order=best_params_refugees).fit()
+final_poc_model = ARIMA(ts_data['Total_POC'], order=best_params_poc).fit()
+future_arima_refugees = np.asarray(final_refugee_model.forecast(steps=forecast_years))
+future_arima_poc = np.asarray(final_poc_model.forecast(steps=forecast_years))
 
 # Create future forecast dataframe
 future_forecasts = pd.DataFrame({
@@ -510,7 +522,7 @@ axes[0].plot(ts_data.index, ts_data['Refugees'], label='Historical Data', color=
 axes[0].plot(future_forecasts['Date'], future_forecasts['Refugees_Forecast'], 
              label='Forecast', color='red', linewidth=2, linestyle='--', marker='o')
 axes[0].axvline(x=ts_data.index.max(), color='gray', linestyle=':', alpha=0.7, label='Forecast Start')
-axes[0].set_title('Refugee Population Forecast', fontweight='bold')
+axes[0].set_title('Refugee Population Statistical Scenario', fontweight='bold')
 axes[0].set_ylabel('Number of Refugees')
 axes[0].legend()
 axes[0].grid(True, alpha=0.3)
@@ -520,7 +532,7 @@ axes[1].plot(ts_data.index, ts_data['Total_POC'], label='Historical Data', color
 axes[1].plot(future_forecasts['Date'], future_forecasts['Total_POC_Forecast'], 
              label='Forecast', color='red', linewidth=2, linestyle='--', marker='o')
 axes[1].axvline(x=ts_data.index.max(), color='gray', linestyle=':', alpha=0.7, label='Forecast Start')
-axes[1].set_title('Total Persons of Concern Forecast', fontweight='bold')
+axes[1].set_title('Total Persons of Concern Statistical Scenario', fontweight='bold')
 axes[1].set_ylabel('Total POC')
 axes[1].legend()
 axes[1].grid(True, alpha=0.3)
@@ -529,8 +541,8 @@ plt.tight_layout()
 plt.savefig('visualizations/future_forecasts.png', dpi=300, bbox_inches='tight')
 plt.show()
 
-# Policy Insights and Recommendations
-print("\n\n10. POLICY INSIGHTS AND RECOMMENDATIONS")
+# Interpretation of historical data and model scenarios
+print("\n\n10. HISTORICAL CONTEXT AND SCENARIO LIMITS")
 print("-" * 40)
 
 print("Key Findings:")
@@ -556,16 +568,10 @@ print(f"   - Total POC increased by {recent_growth_poc:.1f}% in 5 years")
 future_growth_refugees = future_forecasts['Refugee_Growth'].iloc[-1]
 future_growth_poc = future_forecasts['POC_Growth'].iloc[-1]
 
-print(f"\n3. Future Projections (by 2034):")
-print(f"   - Refugee population projected to grow by {future_growth_refugees:.1f}%")
-print(f"   - Total POC projected to grow by {future_growth_poc:.1f}%")
-
-print(f"\n4. Policy Recommendations:")
-print(f"   - Prepare for continued growth in displacement numbers")
-print(f"   - Strengthen international cooperation and burden-sharing")
-print(f"   - Invest in early warning systems for conflict prevention")
-print(f"   - Enhance integration programs for host communities")
-print(f"   - Develop sustainable solutions for protracted displacement")
+print(f"\n3. Uncertain statistical scenarios (by 2034):")
+print(f"   - Refugee-stock model change: {future_growth_refugees:.1f}%")
+print(f"   - Total-POC model change: {future_growth_poc:.1f}%")
+print("   - These 25 annual observations do not support policy-grade directional forecasts.")
 
 # Export results
 print(f"\n\n11. EXPORTING RESULTS")
@@ -591,4 +597,4 @@ print("REFUGEE MIGRATION FLOW ANALYSIS COMPLETED")
 print("=" * 60)
 print(f"All visualizations saved in 'visualizations/' folder")
 print(f"Forecast data exported to CSV files")
-print(f"Analysis complete with policy insights and recommendations")
+print("Analysis complete with descriptive context and uncertain scenarios")
